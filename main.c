@@ -11,37 +11,36 @@
 int WIDTH = 25;
 int HEIGHT = 25;
 int cellSize = 30;
+int score = 0;
 float PI = 3.14159265358979323846;
 
-
-	char board[25][25] = {
-		"#########################",
-		"#.......... # ..........#",
-		"#####.....#####.....#####",
-		"#.......................#",
-		"#.####.####.#.####.####.#",
-		"#....#.#....#....#.#....#",
-		"#.####.####.#.####.####.#",
-		"#.......................#",
-		"#####.#..#######..#.#####",
-		"#.....#.....#.....#.....#",
-		"#.#.#.#.###- -###.#.#.#.#",
-		"#.#.#.#.#  P    #.#.#.#.#",
-		"#.#.#.#.#  - -  #.#.#.#.#",
-		"#.#.#.#.#########.#.#.#.#",
-		"#...#.#...........#.#...#",
-		"#####.#.#########.#.#####",
-		"#...............#.......#",
-		"#.######.######.#..######",
-		"#.......................#",
-		"#.#.#.#.#...#...#.#.#.#.#",
-		"#.#.#.#.###...###.#.#.#.#",
-		"#.#.#.#...........#.#.#.#",
-		"#.#.#.#####.#.##### #.#.#",
-		"#...#...............#...#",
-		"#########################",
-	       };
-
+char board[25][25] = {
+	"#########################",
+	"#.......... # ..........#",
+	"#####.....#####.....#####",
+	"#.......................#",
+	"#.####.####.#.####.####.#",
+	"#....#.#....#....#.#....#",
+	"#.####.####.#.####.####.#",
+	"#.......................#",
+	"#####.#..#######..#.#####",
+	"#.....#.....#.....#.....#",
+	"#.#.#.#.###- -###.#.#.#.#",
+	"#.#.#.#.#  P    #.#.#.#.#",
+	"#.#.#.#.#  - -  #.#.#.#.#",
+	"#.#.#.#.#########.#.#.#.#",
+	"#...#.#...........#.#...#",
+	"#####.#.#########.#.#####",
+	"#...............#.......#",
+	"#.######.######.#..######",
+	"#.......................#",
+	"#.#.#.#.#...#...#.#.#.#.#",
+	"#.#.#.#.###...###.#.#.#.#",
+	"#.#.#.#...........#.#.#.#",
+	"#.#.#.#####.#.##### #.#.#",
+	"#...#...............#...#",
+	"#########################",
+};
 
 void* display(void *arg){
 
@@ -54,7 +53,8 @@ void* display(void *arg){
 	glVertex2i(WIDTH * cellSize, HEIGHT * cellSize);
 	glVertex2i(0, HEIGHT * cellSize);
 	glEnd();
-
+	
+	
   
 	glColor3f(0.1f, 0.1f, 0.5f); 
 
@@ -98,8 +98,10 @@ void* display(void *arg){
 		}
 	}
 
+
+
 	glFlush();
-    
+
 }
 
 
@@ -111,24 +113,66 @@ void reshape(int width, int height) {
 	glViewport(0, 0, width, height);
 }
 
+void *gameEngine(void *arg){
+
+	while(1){
+		pthread_t uiThread;
+		pthread_create(&uiThread, NULL, &display, NULL);
+		//pthread_join(uiThread, NULL);
+
+
+		sleep(1000);
+	}
+}
+
+void keyboard(int key, int x, int y) {
+	switch (key) {
+		case GLUT_KEY_RIGHT:
+			x += 10;
+			break;
+		case GLUT_KEY_LEFT:
+			x -= 10;
+			break;
+		case GLUT_KEY_DOWN:
+			y -= 10;
+			break;
+		case GLUT_KEY_UP:
+			y += 10;
+			break;
+		
+	}
+	
+	glutPostRedisplay();
+}
+
+void initOpenGL(){
+	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	gluOrtho2D(0, 300, 300, 0);
+	glMatrixMode(GL_MODELVIEW);
+}
 
 int main(int argc, char** argv) {
 	
-	pthread_t uiThread;
+	pthread_t game_engine;
 	
-	pthread_create(&uiThread, NULL, &display, NULL);
+	pthread_create(&game_engine, NULL, &gameEngine, NULL);
 	
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
 	glutInitWindowSize(WIDTH*cellSize, HEIGHT*cellSize);
 	glutInitWindowPosition(100, 100);
 	glutCreateWindow("Multithreaded PacMan");
+	initOpenGL();
 	glutDisplayFunc(display);
 	glutReshapeFunc(reshape);
-	//glutSpecialFunc(keyboard);
+	glutSpecialFunc(keyboard);
 	glutMainLoop();
 	
-	pthread_join(uiThread, NULL);
+	
+	//pthread_join(game_engine, NULL);
+	
 	
 	return 0;
 
