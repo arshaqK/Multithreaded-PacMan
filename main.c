@@ -50,15 +50,10 @@ char board[25][25] = {
 
 void* display(void *arg){
 
-	glEnable(GL_TEXTURE_2D);
-    glBindTexture(GL_TEXTURE_2D, texture);
-    glBegin(GL_QUADS);
-    glTexCoord2f(0.0f, 0.0f); glVertex2f(0.0f, 0.0f);
-    glTexCoord2f(1.0f, 0.0f); glVertex2f(1.0f, 0.0f);
-    glTexCoord2f(1.0f, 1.0f); glVertex2f(1.0f, 1.0f);
-    glTexCoord2f(0.0f, 1.0f); glVertex2f(0.0f, 1.0f);
-    glEnd();
-    glDisable(GL_TEXTURE_2D);
+	float pacmanX = playerX * cellSize;
+    float pacmanY = (HEIGHT - 1 - playerY) * cellSize;
+
+	
 
 	glClear(GL_COLOR_BUFFER_BIT);
 	
@@ -116,6 +111,18 @@ void* display(void *arg){
 		}
 	}
 
+	glEnable(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, texture);
+
+    glBegin(GL_QUADS);
+    // Adjust texture coordinates as needed
+    glTexCoord2f(0.0f, 0.0f); glVertex2f(pacmanX, pacmanY);
+    glTexCoord2f(1.0f, 0.0f); glVertex2f(pacmanX + cellSize, pacmanY);
+    glTexCoord2f(1.0f, 1.0f); glVertex2f(pacmanX + cellSize, pacmanY - cellSize);
+    glTexCoord2f(0.0f, 1.0f); glVertex2f(pacmanX, pacmanY - cellSize);
+    glEnd();
+
+    glDisable(GL_TEXTURE_2D);
 
 
 	glFlush();
@@ -196,7 +203,7 @@ void initOpenGL(){
 
     
     int width, height;
-    unsigned char* image = SOIL_load_image("pacman.tfif", &width, &height, 0, SOIL_LOAD_RGB);
+    unsigned char* image = SOIL_load_image("pacman.png", &width, &height, 0, SOIL_LOAD_RGB);
     glGenTextures(1, &texture);
     glBindTexture(GL_TEXTURE_2D, texture);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
