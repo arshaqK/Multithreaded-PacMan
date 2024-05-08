@@ -9,13 +9,14 @@
 #include <unistd.h>
 #include <SOIL/SOIL.h>
 
-float playerX = 0.0f, playerY = 0.0f;
-int WIDTH = 25;
-int HEIGHT = 25;
+
+const int WIDTH = 25;
+const int HEIGHT = 25;
 int cellSize = 30;
 int score = 0;
 float PI = 3.14159265358979323846;
-
+float playerX = WIDTH / 2.0f;
+float playerY = (HEIGHT / 2.0f)-2;
 GLuint texture; // Add this line at the top of your file
 
 
@@ -128,6 +129,17 @@ void* display(void *arg){
 	glFlush();
 
 }
+int isWall(float x, float y) {
+    int gridX = (int)(x);
+    int gridY = (int)(y);
+
+    if (gridX < 0 || gridX >= WIDTH || gridY < 0 || gridY >= HEIGHT) {
+        printf("Out of bounds\n");
+        return 1; 
+    }
+
+    return board[HEIGHT - 1 - gridY][gridX] == '#';
+}
 
 
 
@@ -153,41 +165,33 @@ void *gameEngine(void *arg){
 }
 
 void keyboard(int key, int x, int y) {
-	// switch (key) {
-	// 	case GLUT_KEY_RIGHT:
-	// 		x += 10;
-	// 		break;
-	// 	case GLUT_KEY_LEFT:
-	// 		x -= 10;
-	// 		break;
-	// 	case GLUT_KEY_DOWN:
-	// 		y -= 10;
-	// 		break;
-	// 	case GLUT_KEY_UP:
-	// 		y += 10;
-	// 		break;
-		
-	// }
+    float nextX = playerX;
+    float nextY = playerY;
 
-	    switch (key) {
+    switch (key) {
         case GLUT_KEY_RIGHT:
-            playerX += 0.1f;
+            nextX += 0.2f;
             break;
         case GLUT_KEY_LEFT:
-            playerX -= 0.1f;
+            nextX -= 0.2f;
             break;
         case GLUT_KEY_DOWN:
-            playerY -= 0.1f;
+            nextY += 0.2f;
             break;
         case GLUT_KEY_UP:
-            playerY += 0.1f;
+            nextY -= 0.2f;
             break;
+    }
+
+    // Check if the new position hits a wall
+    if (!isWall(nextX, nextY)) {
+        playerX = nextX;
+        playerY = nextY;
     }
     
     glutPostRedisplay();
-	
-	
 }
+
 
 void initOpenGL(){
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
