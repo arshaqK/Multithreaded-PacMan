@@ -6,13 +6,35 @@
 #include <pthread.h>
 #include <string.h>
 #include <ctype.h>
+#include <unistd.h>
+#include <SOIL/SOIL.h>
 
-
+float playerX = 0.0f, playerY = 0.0f;
 int WIDTH = 25;
 int HEIGHT = 25;
 int cellSize = 30;
 int score = 0;
 float PI = 3.14159265358979323846;
+
+GLuint texture; // Add this line at the top of your file
+
+void initOpenGL(){
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    gluOrtho2D(0, 300, 300, 0);
+    glMatrixMode(GL_MODELVIEW);
+
+    
+    int width, height;
+    unsigned char* image = SOIL_load_image("pacman.png", &width, &height, 0, SOIL_LOAD_RGB);
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    SOIL_free_image_data(image);
+}
 
 char board[25][25] = {
 	"#########################",
@@ -44,6 +66,16 @@ char board[25][25] = {
 
 void* display(void *arg){
 
+	glEnable(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glBegin(GL_QUADS);
+    glTexCoord2f(0.0f, 0.0f); glVertex2f(0.0f, 0.0f);
+    glTexCoord2f(1.0f, 0.0f); glVertex2f(1.0f, 0.0f);
+    glTexCoord2f(1.0f, 1.0f); glVertex2f(1.0f, 1.0f);
+    glTexCoord2f(0.0f, 1.0f); glVertex2f(0.0f, 1.0f);
+    glEnd();
+    glDisable(GL_TEXTURE_2D);
+
 	glClear(GL_COLOR_BUFFER_BIT);
 	
   	glColor3f(0.0f, 0.0f, 0.0f);
@@ -74,6 +106,8 @@ void* display(void *arg){
 			
 		}
 	}
+
+	
 	
 	
 	glColor3f(1.3f, 1.3f, 0.2f); 
@@ -102,6 +136,25 @@ void* display(void *arg){
 
 	glFlush();
 
+}
+
+void keyboard(int key, int x, int y) {
+    switch (key) {
+        case GLUT_KEY_RIGHT:
+            playerX += 0.1f;
+            break;
+        case GLUT_KEY_LEFT:
+            playerX -= 0.1f;
+            break;
+        case GLUT_KEY_DOWN:
+            playerY -= 0.1f;
+            break;
+        case GLUT_KEY_UP:
+            playerY += 0.1f;
+            break;
+    }
+    
+    glutPostRedisplay();
 }
 
 
@@ -169,6 +222,7 @@ int main(int argc, char** argv) {
 	glutReshapeFunc(reshape);
 	glutSpecialFunc(keyboard);
 	glutMainLoop();
+	
 	
 	
 	//pthread_join(game_engine, NULL);
