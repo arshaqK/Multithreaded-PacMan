@@ -7,27 +7,43 @@
 #include <semaphore.h>
 #include <queue>
 
-
 using namespace std;
 using namespace sf;
 
 #include <cstring> // Add this line
 
 sem_t ghostSemaphore;
+sem_t speedBoostSemaphore;
+
 Clock clock1;
 
 float timer = 0;
-
+float timer2 = 0;
+float speedBoostTime = 0;
+float invincibility = 0;
+bool eatEnemy = false;
 bool canMove[] = {false, true, false, false};
+int PlayerX = 20;
+int PlayerY = 460;
+int score = 0;
+int lives = 3;
+void displaymenu();
+void gameOver();
+int ghostX[] = {220,240,240,260};
+int ghostY[] = {220,220,220,220};
+pthread_mutex_t displayMenuMutex;
+
+
+
 char board[26][26] = {
     "#########################",
     "#.......... # ..........#",
     "#####.....#####.....#####",
-    "#.......................#",
+    "#...../.................#",
     "#.####.####.#.####.####.#",
     "#....#.#....#....#.#....#",
     "#.####.####.#.####.####.#",
-    "#.......................#",
+    "#................./.....#",
     "#####.#..#######..#.#####",
     "#.....#.....#.....#.....#",
     "#.#.#.#.###   ###.#.#.#.#",
@@ -36,7 +52,7 @@ char board[26][26] = {
     "#.#.#.#.#########.#.#.#.#",
     "#...#.#...........#.#...#",
     "#####.#.#########.#.#####",
-    "#...............#.......#",
+    "#.../...........#.......#",
     "#.######.######.#..######",
     "#.......................#",
     "#.#.#.#.#...#...#.#.#.#.#",
@@ -46,6 +62,9 @@ char board[26][26] = {
     "#...#...............#...#",
     "#########################",
 };
+	
+
+RenderWindow window(VideoMode(720, 520), "Pacman Game");
 
 void loadPNGImage(string filename, Texture &texture, Sprite &sprite)
 {
@@ -80,15 +99,7 @@ bool isCollision(int x, int y)
     return false;
 }
 
-int PlayerX = 20;
-int PlayerY = 20;
-int score = 0;
-int lives = 3;
-
-int ghostX[] = {220,240,260,280};
-int ghostY[] = {220,220,220,220};
-
-RenderWindow window(VideoMode(720, 520), "Pacman Game");
+bool clockBool = false;
 
 /*
 Game Engine Thread:
@@ -98,11 +109,61 @@ graphics.
 ● This thread will execute the main game loop, continuously updating the game state based
 on user input and Ghost movement controller.*/
 
+void gameOver(){
+    
+   
+    window.clear(Color::Black);
+    // text
+ 	Texture gameOverT;
+	Sprite gameOver;
+	loadPNGImage("gameOver.png", gameOverT, gameOver);
+	gameOver.setPosition(0,0);
+	gameOver.scale(1, 1);
+	window.draw(gameOver);
+	window.display();
+    while (window.isOpen())
+    {
+        Event event;
+        while(window.pollEvent(event))
+        {
+            if (event.type == Event::Closed)
+            {
+                exit(1);
+            }
+
+            if (event.type == Event::KeyPressed)
+            {
+                if (event.key.code == Keyboard::Enter)
+                {
+                    exit(0);
+                    
+                }
+            }
+            if (event.type == Event::KeyPressed)
+            {
+                if (event.key.code == Keyboard::R)
+                {
+              
+                    return;
+
+                    
+                }
+            }
+        }
+    
+    }
+}
+
+
 void* gameEngineThread(void *arg)
 {
     while (window.isOpen())
     {
         Event event;
+        if(clockBool == false){
+   		clock1.restart();
+   		clockBool = true;
+   	}
         while(window.pollEvent(event))
         {
             if (event.type == Event::Closed)
@@ -117,6 +178,13 @@ void* gameEngineThread(void *arg)
                 {
                     board[PlayerY / 20][PlayerX / 20] = ' ';
                     score += 10;
+                }
+                if(board[PlayerY / 20][PlayerX / 20] == '-')
+                {
+                	eatEnemy = true;
+                	board[PlayerY / 20][PlayerX / 20] = ' ';
+                	timer2 = 0;
+					
                 }
                 if (event.key.code == Keyboard::Right)
                 {
@@ -145,6 +213,9 @@ void* gameEngineThread(void *arg)
                     {
                         PlayerY += 20;
                     }
+                }
+                if(score == 3030){
+                	gameOver();
                 }
             }
         }
@@ -204,6 +275,12 @@ void* gameEngineThread(void *arg)
                     wall.setPosition(j * 20, i * 20);
                     window.draw(wall);
                 }
+                if (board[i][j] == '/'){
+                    CircleShape coin(5);
+                    coin.setFillColor(Color::Green);
+                    coin.setPosition(j * 20 + 7, i * 20 + 7);
+                    window.draw(coin);
+                }
                 if (board[i][j] == '.')
                 {
                     CircleShape coin(5);
@@ -235,40 +312,39 @@ void* gameEngineThread(void *arg)
 
        // draw score text on top left corner
         Font font;
-        loadFont("arial.ttf", font);
+        loadFont("Crackman Front.otf", font);
         Text text;
         text.setFont(font);
         text.setString("Score: " + to_string(score));
-        text.setCharacterSize(24);
+        text.setCharacterSize(30);
         text.setFillColor(Color::Red);
-        text.setPosition(window.getSize().x - text.getLocalBounds().width - 10, 10);
+        text.setPosition(520, 240);
         window.draw(text);
 
         // draw the lives text on bottom right corner
         Text livesText;
         livesText.setFont(font);
         livesText.setString("Lives: "+ to_string(lives) );
-        livesText.setCharacterSize(24);
+        livesText.setCharacterSize(30);
         livesText.setFillColor(Color::Red);
-        livesText.setPosition(window.getSize().x - livesText.getLocalBounds().width - 10, window.getSize().y - livesText.getLocalBounds().height - 10);
+        livesText.setPosition(520, 280);
         window.draw(livesText);
-
+     window.display();
 	for(int i=0; i<4; i++){
-        if(PlayerX == ghostX[i] && PlayerY == ghostY[i])
-        {
-            lives -= 1;
-            PlayerX = 20;
-            PlayerY = 20;
-            if(lives == 0)
-            {
-                cout << "Game Over" << endl;
-                exit(NULL);
-                //window.close();
-            }
-        }
-}
-
-        window.display();
+		if(PlayerX == ghostX[i] && PlayerY == ghostY[i] && eatEnemy == false)
+		{
+		    lives -= 1;
+		    PlayerX = 20;
+		    PlayerY = 460;
+		    if(lives <= 0)
+		    {
+			
+			gameOver();
+		    }
+		}
+	}
+	
+   
 
         
     }
@@ -307,35 +383,64 @@ scoreThread
 
 void *moveGhostThread(void *arg)
 {
-    int ghostNum = 0;//*((int *)arg);
+    int ghostNum = 0;
     int lastDirection = 0; // 0 = right, 1 = left, 2 = up, 3 = down
     bool justMovedBackward = false;
+    bool hasSpeedBoost = false;
+   
 
     srand(time(NULL)); // Initialize random number generator
-
-	
-	
 
     while (window.isOpen())
     {
         float time = clock1.getElapsedTime().asSeconds();
 
-	clock1.restart();
-	timer += time;
-	int val = 0;
-	sem_getvalue(&ghostSemaphore, &val);
+        clock1.restart();
+        timer += time;
+        timer2 += time;
+        int val = 0;
+        sem_getvalue(&ghostSemaphore, &val);
+	
 
-	if(timer >= 4 && val < 2){
-		sem_post(&ghostSemaphore);
-		timer = 0;
+        if(timer >= 4 && val < 2){
+            sem_post(&ghostSemaphore);
+            timer = 0;
+        }
+        
+        if(PlayerX == ghostX[0] && PlayerY == ghostY[0] && eatEnemy == true)
+	{
+		ghostX[0] = 220;
+		ghostY[0] = 220;
+						
 	}
 	
-	cout << "Ghost 1" << timer << endl;
-	
-	
-	 if (!justMovedBackward && !isCollision(ghostX[ghostNum] + 20, ghostY[ghostNum]) && lastDirection != 1) {
-            ghostX[ghostNum] += 20;
-            lastDirection = 0;
+	if(timer2 >= 10){
+		sem_post(&ghostSemaphore);
+		timer2 = 0;
+		eatEnemy = false;		
+	}
+        
+        if(board[ghostY[ghostNum] / 20][ghostX[ghostNum] / 20] == '/')
+        {
+            sem_getvalue(&speedBoostSemaphore, &val);
+            if(val<2&&!hasSpeedBoost){
+                sem_post(&speedBoostSemaphore);
+                hasSpeedBoost = true;
+                speedBoostTime = timer; // Change the type of speedBoostTime
+                cout<<"Speed Boost"<<endl;
+                exit(0);
+
+            }
+        }
+
+        if(hasSpeedBoost && time - speedBoostTime > 5){ // Use std::chrono::system_clock::now() for comparison
+            sem_post(&speedBoostSemaphore);
+            hasSpeedBoost = false;
+        }
+	  if (!isCollision(ghostX[ghostNum], ghostY[ghostNum] - 20)) {
+            ghostY[ghostNum] -= 20;
+            lastDirection = 2;
+            justMovedBackward = false;
         } else if (!justMovedBackward && !isCollision(ghostX[ghostNum] - 20, ghostY[ghostNum]) && lastDirection != 0) {
             ghostX[ghostNum] -= 20;
             lastDirection = 1;
@@ -343,24 +448,41 @@ void *moveGhostThread(void *arg)
             ghostY[ghostNum] += 20;
             lastDirection = 3;
             justMovedBackward = false;
-        } else if (!isCollision(ghostX[ghostNum], ghostY[ghostNum] - 20)) {
-            ghostY[ghostNum] -= 20;
-            lastDirection = 2;
-            justMovedBackward = false;
+        } else if (!justMovedBackward && !isCollision(ghostX[ghostNum] + 20, ghostY[ghostNum]) && lastDirection != 1) {
+            ghostX[ghostNum] += 20;
+            lastDirection = 0;
         } else {
             // If all directions are blocked, move back in the opposite direction
             switch (lastDirection) {
                 case 0:
-                    ghostX[ghostNum] -= 20;
+                    if (!isCollision(ghostX[ghostNum], ghostY[ghostNum] - 20)) {
+                        ghostY[ghostNum] -= 20;
+                        lastDirection = 2;
+                    } else {
+                        ghostX[ghostNum] -= 20;
+                    }
                     break;
                 case 1:
-                    ghostX[ghostNum] += 20;
+                    if (!isCollision(ghostX[ghostNum], ghostY[ghostNum] - 20)) {
+                        ghostY[ghostNum] -= 20;
+                        lastDirection = 2;
+                    } else {
+                        ghostX[ghostNum] += 20;
+                    }
                     break;
                 case 2:
                     ghostY[ghostNum] += 20;
                     break;
                 case 3:
-                    ghostY[ghostNum] -= 20;
+                    if (!isCollision(ghostX[ghostNum] - 20, ghostY[ghostNum])) {
+                        ghostX[ghostNum] -= 20;
+                        lastDirection = 1;
+                    } else if (!isCollision(ghostX[ghostNum] + 20, ghostY[ghostNum])) {
+                        ghostX[ghostNum] += 20;
+                        lastDirection = 0;
+                    } else {
+                        ghostY[ghostNum] -= 20;
+                    }
                     break;
             }
             justMovedBackward = true;
@@ -369,6 +491,7 @@ void *moveGhostThread(void *arg)
         sleep(seconds(1));
     }
     return NULL;
+
 }
 
 
@@ -389,63 +512,86 @@ void *moveGhostThread2(void *arg)
 
 	clock1.restart();
 	timer += time;
+	timer2 += time;
 	int val = 0;
 	sem_getvalue(&ghostSemaphore, &val);
-
+	
 	if(timer >= 4 && val < 2){
 		sem_post(&ghostSemaphore);
 		timer = 0;
 	}
 	
-	cout << "Ghost 1" << timer << endl;
+	
+	if(PlayerX == ghostX[1] && PlayerY == ghostY[1] && eatEnemy == true)
+	{
+		cout << "THIS ISS IN THE CODE: " << endl;
+		ghostX[1] = 220;
+		ghostY[1] = 220;
+						
+	}
+	
+	if(timer2 >= 10){
+		sem_post(&ghostSemaphore);
+		timer2 = 0;
+		eatEnemy = false;		
+	}
+	
+	cout << "Ghost 2: Timer1: " << timer << " Timer2: " << timer2 << endl;
 
- 	queue<vector<pair<int, int>>> q;
-        bool visited[26][26] = {false};
-        pair<int, int> start = {ghostX[ghostNum] / 20, ghostY[ghostNum] / 20};
-        q.push({start});
-        while (!q.empty()) {
-            vector<pair<int, int>> path = q.front();
-            q.pop();
-            pair<int, int> position = path.back();
-            int x = position.first;
-            int y = position.second;
-            if (x == PlayerX / 20 && y == PlayerY / 20) {
-                for (auto& p : path) {
-                    ghostX[ghostNum] = p.first * 20;
-                    ghostY[ghostNum] = p.second * 20;
-                    sleep(seconds(1));
-                }
-                break;
+
+	 if (!isCollision(ghostX[ghostNum], ghostY[ghostNum] - 20)) {
+            ghostY[ghostNum] -= 20;
+            lastDirection = 2;
+            justMovedBackward = false;
+        } else if (!justMovedBackward && !isCollision(ghostX[ghostNum] - 20, ghostY[ghostNum]) && lastDirection != 0) {
+            ghostX[ghostNum] -= 20;
+            lastDirection = 1;
+        } else if (!isCollision(ghostX[ghostNum], ghostY[ghostNum] + 20)) {
+            ghostY[ghostNum] += 20;
+            lastDirection = 3;
+            justMovedBackward = false;
+        } else if (!justMovedBackward && !isCollision(ghostX[ghostNum] + 20, ghostY[ghostNum]) && lastDirection != 1) {
+            ghostX[ghostNum] += 20;
+            lastDirection = 0;
+        } else {
+            // If all directions are blocked, move back in the opposite direction
+            switch (lastDirection) {
+                case 0:
+                    if (!isCollision(ghostX[ghostNum], ghostY[ghostNum] - 20)) {
+                        ghostY[ghostNum] -= 20;
+                        lastDirection = 2;
+                    } else {
+                        ghostX[ghostNum] -= 20;
+                    }
+                    break;
+                case 1:
+                    if (!isCollision(ghostX[ghostNum], ghostY[ghostNum] - 20)) {
+                        ghostY[ghostNum] -= 20;
+                        lastDirection = 2;
+                    } else {
+                        ghostX[ghostNum] += 20;
+                    }
+                    break;
+                case 2:
+                    ghostY[ghostNum] += 20;
+                    break;
+                case 3:
+                    if (!isCollision(ghostX[ghostNum] - 20, ghostY[ghostNum])) {
+                        ghostX[ghostNum] -= 20;
+                        lastDirection = 1;
+                    } else if (!isCollision(ghostX[ghostNum] + 20, ghostY[ghostNum])) {
+                        ghostX[ghostNum] += 20;
+                        lastDirection = 0;
+                    } else {
+                        ghostY[ghostNum] -= 20;
+                    }
+                    break;
             }
-            // Up
-            if (x > 0 && !visited[x - 1][y] && !isCollision((x - 1) * 20, y * 20)) {
-                vector<pair<int, int>> newPath = path;
-                newPath.push_back({x - 1, y});
-                q.push(newPath);
-                visited[x - 1][y] = true;
-            }
-            // Down
-            if (x < 25 && !visited[x + 1][y] && !isCollision((x + 1) * 20, y * 20)) {
-                vector<pair<int, int>> newPath = path;
-                newPath.push_back({x + 1, y});
-                q.push(newPath);
-                visited[x + 1][y] = true;
-            }
-            // Left
-            if (y > 0 && !visited[x][y - 1] && !isCollision(x * 20, (y - 1) * 20)) {
-                vector<pair<int, int>> newPath = path;
-                newPath.push_back({x, y - 1});
-                q.push(newPath);
-                visited[x][y - 1] = true;
-            }
-            // Right
-            if (y < 25 && !visited[x][y + 1] && !isCollision(x * 20, (y + 1) * 20)) {
-                vector<pair<int, int>> newPath = path;
-                newPath.push_back({x, y + 1});
-                q.push(newPath);
-                visited[x][y + 1] = true;
-            }	
-           }
+            justMovedBackward = true;
+        }
+
+
+        sleep(seconds(1));
 	
      }
     return NULL;
@@ -467,6 +613,7 @@ void *moveGhostThread3(void *arg)
 
 	clock1.restart();
 	timer += time;
+	timer2 += time;
 	int val = 0;
 	sem_getvalue(&ghostSemaphore, &val);
 
@@ -475,11 +622,27 @@ void *moveGhostThread3(void *arg)
 		timer = 0;
 	}
 	
-	cout << "Ghost 1" << timer << endl;
+	if(PlayerX == ghostX[2] && PlayerY == ghostY[2] && eatEnemy == true)
+	{
+		ghostX[2] = 220;
+		ghostY[2] = 220;
+						
+	}
 	
-        if (!justMovedBackward && !isCollision(ghostX[ghostNum] + 20, ghostY[ghostNum]) && lastDirection != 1) {
-            ghostX[ghostNum] += 20;
-            lastDirection = 0;
+	if(timer2 >= 10){
+		sem_post(&ghostSemaphore);
+		timer2 = 0;
+		eatEnemy = false;		
+	}
+	
+	
+	cout << "Ghost 1 Timer1: " << timer << " Timer2: " << timer2 << endl;
+
+	
+        if (!isCollision(ghostX[ghostNum], ghostY[ghostNum] - 20)) {
+            ghostY[ghostNum] -= 20;
+            lastDirection = 2;
+            justMovedBackward = false;
         } else if (!justMovedBackward && !isCollision(ghostX[ghostNum] - 20, ghostY[ghostNum]) && lastDirection != 0) {
             ghostX[ghostNum] -= 20;
             lastDirection = 1;
@@ -487,24 +650,41 @@ void *moveGhostThread3(void *arg)
             ghostY[ghostNum] += 20;
             lastDirection = 3;
             justMovedBackward = false;
-        } else if (!isCollision(ghostX[ghostNum], ghostY[ghostNum] - 20)) {
-            ghostY[ghostNum] -= 20;
-            lastDirection = 2;
-            justMovedBackward = false;
+        } else if (!justMovedBackward && !isCollision(ghostX[ghostNum] + 20, ghostY[ghostNum]) && lastDirection != 1) {
+            ghostX[ghostNum] += 20;
+            lastDirection = 0;
         } else {
             // If all directions are blocked, move back in the opposite direction
             switch (lastDirection) {
                 case 0:
-                    ghostX[ghostNum] -= 20;
+                    if (!isCollision(ghostX[ghostNum], ghostY[ghostNum] - 20)) {
+                        ghostY[ghostNum] -= 20;
+                        lastDirection = 2;
+                    } else {
+                        ghostX[ghostNum] -= 20;
+                    }
                     break;
                 case 1:
-                    ghostX[ghostNum] += 20;
+                    if (!isCollision(ghostX[ghostNum], ghostY[ghostNum] - 20)) {
+                        ghostY[ghostNum] -= 20;
+                        lastDirection = 2;
+                    } else {
+                        ghostX[ghostNum] += 20;
+                    }
                     break;
                 case 2:
                     ghostY[ghostNum] += 20;
                     break;
                 case 3:
-                    ghostY[ghostNum] -= 20;
+                    if (!isCollision(ghostX[ghostNum] - 20, ghostY[ghostNum])) {
+                        ghostX[ghostNum] -= 20;
+                        lastDirection = 1;
+                    } else if (!isCollision(ghostX[ghostNum] + 20, ghostY[ghostNum])) {
+                        ghostX[ghostNum] += 20;
+                        lastDirection = 0;
+                    } else {
+                        ghostY[ghostNum] -= 20;
+                    }
                     break;
             }
             justMovedBackward = true;
@@ -531,6 +711,7 @@ void *moveGhostThread4(void *arg)
 
 	clock1.restart();
 	timer += time;
+	timer2 += time;
 	int val = 0;
 	sem_getvalue(&ghostSemaphore, &val);
 
@@ -539,37 +720,88 @@ void *moveGhostThread4(void *arg)
 		timer = 0;
 	}
 	
-	cout << "Ghost 1" << timer << endl;
+	if(PlayerX == ghostX[3] && PlayerY == ghostY[3] && eatEnemy == true)
+	{
+		ghostX[3] = 220;
+		ghostY[3] = 220;
+						
+	}
 	
-        if (!justMovedBackward && !isCollision(ghostX[ghostNum] + 20, ghostY[ghostNum]) && lastDirection != 1) {
-            ghostX[ghostNum] += 20;
-            lastDirection = 0;
-        } else if (!justMovedBackward && !isCollision(ghostX[ghostNum] - 20, ghostY[ghostNum]) && lastDirection != 0) {
-            ghostX[ghostNum] -= 20;
-            lastDirection = 1;
-        } else if (!isCollision(ghostX[ghostNum], ghostY[ghostNum] + 20)) {
-            ghostY[ghostNum] += 20;
-            lastDirection = 3;
-            justMovedBackward = false;
-        } else if (!isCollision(ghostX[ghostNum], ghostY[ghostNum] - 20)) {
+	if(timer2 >= 10){
+		sem_post(&ghostSemaphore);
+		timer2 = 0;
+		eatEnemy = false;		
+	}
+	
+	
+        if (!isCollision(ghostX[ghostNum], ghostY[ghostNum] - 20) && lastDirection != 3)
+        {
             ghostY[ghostNum] -= 20;
             lastDirection = 2;
             justMovedBackward = false;
-        } else {
+        }
+        else if (!justMovedBackward && !isCollision(ghostX[ghostNum] + 20, ghostY[ghostNum]) && lastDirection != 1)
+        {
+            ghostX[ghostNum] += 20;
+            lastDirection = 0;
+        }
+        else if (!isCollision(ghostX[ghostNum], ghostY[ghostNum] + 20) && lastDirection != 2)
+        {
+            ghostY[ghostNum] += 20;
+            lastDirection = 3;
+            justMovedBackward = false;
+        }
+        else if (!justMovedBackward && !isCollision(ghostX[ghostNum] - 20, ghostY[ghostNum]) && lastDirection != 0)
+        {
+            ghostX[ghostNum] -= 20;
+            lastDirection = 1;
+        }
+        else
+        {
             // If all directions are blocked, move back in the opposite direction
-            switch (lastDirection) {
-                case 0:
-                    ghostX[ghostNum] -= 20;
-                    break;
-                case 1:
-                    ghostX[ghostNum] += 20;
-                    break;
-                case 2:
-                    ghostY[ghostNum] += 20;
-                    break;
-                case 3:
+            switch (lastDirection)
+            {
+            case 0:
+                if (!isCollision(ghostX[ghostNum], ghostY[ghostNum] - 20))
+                {
                     ghostY[ghostNum] -= 20;
-                    break;
+                    lastDirection = 2;
+                }
+                else
+                {
+                    ghostX[ghostNum] -= 20;
+                }
+                break;
+            case 1:
+                if (!isCollision(ghostX[ghostNum], ghostY[ghostNum] - 20))
+                {
+                    ghostY[ghostNum] -= 20;
+                    lastDirection = 2;
+                }
+                else
+                {
+                    ghostX[ghostNum] += 20;
+                }
+                break;
+            case 2:
+                ghostY[ghostNum] += 20;
+                break;
+            case 3:
+                if (!isCollision(ghostX[ghostNum] - 20, ghostY[ghostNum]))
+                {
+                    ghostX[ghostNum] -= 20;
+                    lastDirection = 1;
+                }
+                else if (!isCollision(ghostX[ghostNum] + 20, ghostY[ghostNum]))
+                {
+                    ghostX[ghostNum] += 20;
+                    lastDirection = 0;
+                }
+                else
+                {
+                    ghostY[ghostNum] -= 20;
+                }
+                break;
             }
             justMovedBackward = true;
         }
@@ -580,31 +812,76 @@ void *moveGhostThread4(void *arg)
 }
 
 
+void displaymenu()
+{
+    // Load and display the menu image
+    Texture menuT;
+    Sprite menu;
+	loadPNGImage("menu.png", menuT, menu);
+    menu.setPosition(0, 0);
+    menu.setScale(1, 1);
+    window.draw(menu);
+    window.display();
+
+    // Event loop to wait for the Enter key or window close
+    while (window.isOpen())
+    {
+        Event event;
+        while (window.pollEvent(event))
+        {
+            if (event.type == Event::Closed)
+            {
+                exit(1);
+            }
+
+            if (event.type == Event::KeyPressed && event.key.code == Keyboard::Enter)
+            {
+               
+                return;
+            }
+        }
+    }
+}
 
 
 
 int main()
 {
     window.setActive(false);
+
+    pthread_mutex_init(&displayMenuMutex, NULL);
+
+    pthread_mutex_lock(&displayMenuMutex);
+
+    displaymenu();
+
+    pthread_mutex_unlock(&displayMenuMutex);
+
     pthread_t thread;
     pthread_t thread2, thread3, thread4, thread5;
     pthread_create(&thread, NULL, gameEngineThread, NULL);
-    
+
+
     sem_init(&ghostSemaphore, 0, 2);
-    
+	sem_init(&speedBoostSemaphore, 0, 2);
+
     sem_wait(&ghostSemaphore);
     pthread_create(&thread2, NULL, moveGhostThread, NULL);
-    
+
     sem_wait(&ghostSemaphore);
     pthread_create(&thread3, NULL, moveGhostThread2, NULL);
-    
+
     sem_wait(&ghostSemaphore);
     pthread_create(&thread4, NULL, moveGhostThread3, NULL);
-    
+
     sem_wait(&ghostSemaphore);
     pthread_create(&thread5, NULL, moveGhostThread4, NULL);
-    //pthread_create(&thread2, NULL, userInterfaceThread, NULL);
 
+    // Wait for the game engine thread to finish
     pthread_join(thread, NULL);
-    return 0;   
+
+    // Destroy the mutex after use
+    pthread_mutex_destroy(&displayMenuMutex);
+
+    return 0;
 }
