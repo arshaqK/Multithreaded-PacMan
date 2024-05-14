@@ -101,13 +101,6 @@ bool isCollision(int x, int y)
 
 bool clockBool = false;
 
-/*
-Game Engine Thread:
-● Create a dedicated thread for the game engine, which is responsible for coordinating the
-overall game flow, handling input from players, updating the game state, and rendering
-graphics.
-● This thread will execute the main game loop, continuously updating the game state based
-on user input and Ghost movement controller.*/
 
 void gameOver(){
     
@@ -220,12 +213,6 @@ void* gameEngineThread(void *arg)
             }
         }
  
-
-        // scoreTriggerMutex.signal()
-
-        // use mutex and wait for score thread to check for player collision
-        // scoreMutex.wait()
-
 
 
         window.clear();
@@ -351,13 +338,7 @@ void* gameEngineThread(void *arg)
     return NULL;
 }
 
-/*
-User Interface Thread:
-● Implement a separate thread to manage the user interface (UI) components of the game,
-including menus, scoreboards, and any Heads-up display (HUD) elements.
-● This thread will handle input events from the player, such as keyboard or mouse input, and
-communicate them to the game engine thread for processing.
-*/
+
 void *userInterfaceThread(void *arg)
 {
      while (window.isOpen())
@@ -370,21 +351,11 @@ void *userInterfaceThread(void *arg)
      return NULL;
 }
 
-/*
-scoreThread
-{
-    while True:
-        scoreSignalMutex.wait()
-        if pl collides with pellet:
-            score += 10
-        scoreMutex.signal()
-}
-*/
 
 void *moveGhostThread(void *arg)
 {
     int ghostNum = 0;
-    int lastDirection = 0; // 0 = right, 1 = left, 2 = up, 3 = down
+    int lastDirection = 0; 
     bool justMovedBackward = false;
     bool hasSpeedBoost = false;
    
@@ -426,14 +397,13 @@ void *moveGhostThread(void *arg)
             if(val<2&&!hasSpeedBoost){
                 sem_post(&speedBoostSemaphore);
                 hasSpeedBoost = true;
-                speedBoostTime = timer; // Change the type of speedBoostTime
-                cout<<"Speed Boost"<<endl;
+                speedBoostTime = timer; 
                 exit(0);
 
             }
         }
 
-        if(hasSpeedBoost && time - speedBoostTime > 5){ // Use std::chrono::system_clock::now() for comparison
+        if(hasSpeedBoost && time - speedBoostTime > 5){ 
             sem_post(&speedBoostSemaphore);
             hasSpeedBoost = false;
         }
@@ -498,12 +468,11 @@ void *moveGhostThread(void *arg)
 
 void *moveGhostThread2(void *arg)
 {
-    int ghostNum = 1;//*((int *)arg);
-    int lastDirection = 0; // 0 = right, 1 = left, 2 = up, 3 = down
+    int ghostNum = 1;
+    int lastDirection = 0; 
     bool justMovedBackward = false;
 
-    srand(time(NULL)); // Initialize random number generator
-
+    srand(time(NULL)); 
 
     while (window.isOpen())
     {
@@ -524,7 +493,6 @@ void *moveGhostThread2(void *arg)
 	
 	if(PlayerX == ghostX[1] && PlayerY == ghostY[1] && eatEnemy == true)
 	{
-		cout << "THIS ISS IN THE CODE: " << endl;
 		ghostX[1] = 220;
 		ghostY[1] = 220;
 						
@@ -536,7 +504,6 @@ void *moveGhostThread2(void *arg)
 		eatEnemy = false;		
 	}
 	
-	cout << "Ghost 2: Timer1: " << timer << " Timer2: " << timer2 << endl;
 
 
 	 if (!isCollision(ghostX[ghostNum], ghostY[ghostNum] - 20)) {
@@ -601,8 +568,8 @@ void *moveGhostThread2(void *arg)
 
 void *moveGhostThread3(void *arg)
 {
-    int ghostNum = 2;//*((int *)arg);
-    int lastDirection = 0; // 0 = right, 1 = left, 2 = up, 3 = down
+    int ghostNum = 2;
+    int lastDirection = 0; 
     bool justMovedBackward = false;
 
     srand(time(NULL)); // Initialize random number generator
@@ -636,7 +603,6 @@ void *moveGhostThread3(void *arg)
 	}
 	
 	
-	cout << "Ghost 1 Timer1: " << timer << " Timer2: " << timer2 << endl;
 
 	
         if (!isCollision(ghostX[ghostNum], ghostY[ghostNum] - 20)) {
@@ -697,8 +663,8 @@ void *moveGhostThread3(void *arg)
 
 void *moveGhostThread4(void *arg)
 {
-    int ghostNum = 3;//*((int *)arg);
-    int lastDirection = 0; // 0 = right, 1 = left, 2 = up, 3 = down
+    int ghostNum = 3;
+    int lastDirection = 0; 
     bool justMovedBackward = false;
 
     srand(time(NULL)); // Initialize random number generator
@@ -880,7 +846,7 @@ int main()
     // Wait for the game engine thread to finish
     pthread_join(thread, NULL);
 
-    // Destroy the mutex after use
+
     pthread_mutex_destroy(&displayMenuMutex);
 
     return 0;
