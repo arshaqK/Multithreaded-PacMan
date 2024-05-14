@@ -3,12 +3,22 @@
 #include <vector>
 #include <pthread.h>
 #include <mutex>
+#include <unistd.h>
+#include <semaphore.h>
+#include <queue>
+
 
 using namespace std;
 using namespace sf;
 
 #include <cstring> // Add this line
 
+sem_t ghostSemaphore;
+Clock clock1;
+
+float timer = 0;
+
+bool canMove[] = {false, true, false, false};
 char board[26][26] = {
     "#########################",
     "#.......... # ..........#",
@@ -20,9 +30,9 @@ char board[26][26] = {
     "#.......................#",
     "#####.#..#######..#.#####",
     "#.....#.....#.....#.....#",
-    "#.#.#.#.###- -###.#.#.#.#",
+    "#.#.#.#.###   ###.#.#.#.#",
     "#.#.#.#.#  P    #.#.#.#.#",
-    "#.#.#.#.#  - -  #.#.#.#.#",
+    "#-#.#.#.#       #.#.#.#.#",
     "#.#.#.#.#########.#.#.#.#",
     "#...#.#...........#.#...#",
     "#####.#.#########.#.#####",
@@ -31,8 +41,8 @@ char board[26][26] = {
     "#.......................#",
     "#.#.#.#.#...#...#.#.#.#.#",
     "#.#.#.#.###...###.#.#.#.#",
-    "#.#.#.#...........#.#.#.#",
-    "#.#.#.#####.#.##### #.#.#",
+    "#.#.#.#...........#-#.#.#",
+    "#.#.#.#####.#.#####.#.#.#",
     "#...#...............#...#",
     "#########################",
 };
@@ -75,8 +85,8 @@ int PlayerY = 20;
 int score = 0;
 int lives = 3;
 
-int ghostX[1] = {20};
-int ghostY[1] = {20};
+int ghostX[] = {220,240,260,280};
+int ghostY[] = {220,220,220,220};
 
 RenderWindow window(VideoMode(720, 520), "Pacman Game");
 
@@ -152,10 +162,36 @@ void* gameEngineThread(void *arg)
         // draw ghost here
         Texture ghostTexture;
         Sprite ghostSprite;
-        loadPNGImage("pacman.png", ghostTexture, ghostSprite);
+        loadPNGImage("ghost1.png", ghostTexture, ghostSprite);
         ghostSprite.setPosition(ghostX[0], ghostY[0]);
-        ghostSprite.scale(0.05, 0.05);
+        ghostSprite.scale(0.4, 0.4);
         window.draw(ghostSprite);
+
+        //  ghost
+        Texture ghostTexture2;
+        Sprite ghostSprite2;
+        loadPNGImage("ghost2.png", ghostTexture2, ghostSprite2);
+        ghostSprite2.setPosition(ghostX[1], ghostY[1]);
+        ghostSprite2.scale(0.4, 0.4);
+        window.draw(ghostSprite2);
+
+        //  ghost
+        Texture ghostTexture3;
+        Sprite ghostSprite3;
+        loadPNGImage("ghost3.png", ghostTexture3, ghostSprite3);
+        ghostSprite3.setPosition(ghostX[2], ghostY[2]);
+        ghostSprite3.scale(0.4, 0.4);
+        window.draw(ghostSprite3);
+
+        // ghost
+        Texture ghostTexture4;
+        Sprite ghostSprite4;
+        loadPNGImage("ghost4.png", ghostTexture4, ghostSprite4);
+        ghostSprite4.setPosition(ghostX[3], ghostY[3]);
+        ghostSprite4.scale(0.4, 0.4);
+        window.draw(ghostSprite4);
+
+
 
         for (int i = 0; i < 26; i++)
         {
@@ -175,6 +211,13 @@ void* gameEngineThread(void *arg)
                     coin.setPosition(j * 20 + 7, i * 20 + 7);
                     window.draw(coin);
                 }
+                if (board[i][j] == '-')
+                {
+                    CircleShape coin(5);
+                    coin.setFillColor(Color::Red);
+                    coin.setPosition(j * 20 + 7, i * 20 + 7);
+                    window.draw(coin);
+                }
                 if (board[i][j] == 'P')
                 {
                     // load a png
@@ -190,7 +233,7 @@ void* gameEngineThread(void *arg)
             }
         }
 
-       
+       // draw score text on top left corner
         Font font;
         loadFont("arial.ttf", font);
         Text text;
@@ -201,7 +244,7 @@ void* gameEngineThread(void *arg)
         text.setPosition(window.getSize().x - text.getLocalBounds().width - 10, 10);
         window.draw(text);
 
-       
+        // draw the lives text on bottom right corner
         Text livesText;
         livesText.setFont(font);
         livesText.setString("Lives: "+ to_string(lives) );
@@ -210,16 +253,20 @@ void* gameEngineThread(void *arg)
         livesText.setPosition(window.getSize().x - livesText.getLocalBounds().width - 10, window.getSize().y - livesText.getLocalBounds().height - 10);
         window.draw(livesText);
 
-        if(PlayerX == ghostX[0] && PlayerY == ghostY[0])
+	for(int i=0; i<4; i++){
+        if(PlayerX == ghostX[i] && PlayerY == ghostY[i])
         {
             lives -= 1;
+            PlayerX = 20;
+            PlayerY = 20;
             if(lives == 0)
             {
                 cout << "Game Over" << endl;
+                exit(NULL);
                 //window.close();
             }
         }
-
+}
 
         window.display();
 
@@ -266,8 +313,234 @@ void *moveGhostThread(void *arg)
 
     srand(time(NULL)); // Initialize random number generator
 
+	
+	
+
     while (window.isOpen())
     {
+        float time = clock1.getElapsedTime().asSeconds();
+
+	clock1.restart();
+	timer += time;
+	int val = 0;
+	sem_getvalue(&ghostSemaphore, &val);
+
+	if(timer >= 4 && val < 2){
+		sem_post(&ghostSemaphore);
+		timer = 0;
+	}
+	
+	cout << "Ghost 1" << timer << endl;
+	
+	
+	 if (!justMovedBackward && !isCollision(ghostX[ghostNum] + 20, ghostY[ghostNum]) && lastDirection != 1) {
+            ghostX[ghostNum] += 20;
+            lastDirection = 0;
+        } else if (!justMovedBackward && !isCollision(ghostX[ghostNum] - 20, ghostY[ghostNum]) && lastDirection != 0) {
+            ghostX[ghostNum] -= 20;
+            lastDirection = 1;
+        } else if (!isCollision(ghostX[ghostNum], ghostY[ghostNum] + 20)) {
+            ghostY[ghostNum] += 20;
+            lastDirection = 3;
+            justMovedBackward = false;
+        } else if (!isCollision(ghostX[ghostNum], ghostY[ghostNum] - 20)) {
+            ghostY[ghostNum] -= 20;
+            lastDirection = 2;
+            justMovedBackward = false;
+        } else {
+            // If all directions are blocked, move back in the opposite direction
+            switch (lastDirection) {
+                case 0:
+                    ghostX[ghostNum] -= 20;
+                    break;
+                case 1:
+                    ghostX[ghostNum] += 20;
+                    break;
+                case 2:
+                    ghostY[ghostNum] += 20;
+                    break;
+                case 3:
+                    ghostY[ghostNum] -= 20;
+                    break;
+            }
+            justMovedBackward = true;
+        }
+
+        sleep(seconds(1));
+    }
+    return NULL;
+}
+
+
+
+void *moveGhostThread2(void *arg)
+{
+    int ghostNum = 1;//*((int *)arg);
+    int lastDirection = 0; // 0 = right, 1 = left, 2 = up, 3 = down
+    bool justMovedBackward = false;
+
+    srand(time(NULL)); // Initialize random number generator
+
+
+    while (window.isOpen())
+    {
+    
+    	float time = clock1.getElapsedTime().asSeconds();
+
+	clock1.restart();
+	timer += time;
+	int val = 0;
+	sem_getvalue(&ghostSemaphore, &val);
+
+	if(timer >= 4 && val < 2){
+		sem_post(&ghostSemaphore);
+		timer = 0;
+	}
+	
+	cout << "Ghost 1" << timer << endl;
+
+ 	queue<vector<pair<int, int>>> q;
+        bool visited[26][26] = {false};
+        pair<int, int> start = {ghostX[ghostNum] / 20, ghostY[ghostNum] / 20};
+        q.push({start});
+        while (!q.empty()) {
+            vector<pair<int, int>> path = q.front();
+            q.pop();
+            pair<int, int> position = path.back();
+            int x = position.first;
+            int y = position.second;
+            if (x == PlayerX / 20 && y == PlayerY / 20) {
+                for (auto& p : path) {
+                    ghostX[ghostNum] = p.first * 20;
+                    ghostY[ghostNum] = p.second * 20;
+                    sleep(seconds(1));
+                }
+                break;
+            }
+            // Up
+            if (x > 0 && !visited[x - 1][y] && !isCollision((x - 1) * 20, y * 20)) {
+                vector<pair<int, int>> newPath = path;
+                newPath.push_back({x - 1, y});
+                q.push(newPath);
+                visited[x - 1][y] = true;
+            }
+            // Down
+            if (x < 25 && !visited[x + 1][y] && !isCollision((x + 1) * 20, y * 20)) {
+                vector<pair<int, int>> newPath = path;
+                newPath.push_back({x + 1, y});
+                q.push(newPath);
+                visited[x + 1][y] = true;
+            }
+            // Left
+            if (y > 0 && !visited[x][y - 1] && !isCollision(x * 20, (y - 1) * 20)) {
+                vector<pair<int, int>> newPath = path;
+                newPath.push_back({x, y - 1});
+                q.push(newPath);
+                visited[x][y - 1] = true;
+            }
+            // Right
+            if (y < 25 && !visited[x][y + 1] && !isCollision(x * 20, (y + 1) * 20)) {
+                vector<pair<int, int>> newPath = path;
+                newPath.push_back({x, y + 1});
+                q.push(newPath);
+                visited[x][y + 1] = true;
+            }	
+           }
+	
+     }
+    return NULL;
+}
+
+
+
+void *moveGhostThread3(void *arg)
+{
+    int ghostNum = 2;//*((int *)arg);
+    int lastDirection = 0; // 0 = right, 1 = left, 2 = up, 3 = down
+    bool justMovedBackward = false;
+
+    srand(time(NULL)); // Initialize random number generator
+
+    while (window.isOpen())
+    {
+	float time = clock1.getElapsedTime().asSeconds();
+
+	clock1.restart();
+	timer += time;
+	int val = 0;
+	sem_getvalue(&ghostSemaphore, &val);
+
+	if(timer >= 8 && val < 2){
+		sem_post(&ghostSemaphore);
+		timer = 0;
+	}
+	
+	cout << "Ghost 1" << timer << endl;
+	
+        if (!justMovedBackward && !isCollision(ghostX[ghostNum] + 20, ghostY[ghostNum]) && lastDirection != 1) {
+            ghostX[ghostNum] += 20;
+            lastDirection = 0;
+        } else if (!justMovedBackward && !isCollision(ghostX[ghostNum] - 20, ghostY[ghostNum]) && lastDirection != 0) {
+            ghostX[ghostNum] -= 20;
+            lastDirection = 1;
+        } else if (!isCollision(ghostX[ghostNum], ghostY[ghostNum] + 20)) {
+            ghostY[ghostNum] += 20;
+            lastDirection = 3;
+            justMovedBackward = false;
+        } else if (!isCollision(ghostX[ghostNum], ghostY[ghostNum] - 20)) {
+            ghostY[ghostNum] -= 20;
+            lastDirection = 2;
+            justMovedBackward = false;
+        } else {
+            // If all directions are blocked, move back in the opposite direction
+            switch (lastDirection) {
+                case 0:
+                    ghostX[ghostNum] -= 20;
+                    break;
+                case 1:
+                    ghostX[ghostNum] += 20;
+                    break;
+                case 2:
+                    ghostY[ghostNum] += 20;
+                    break;
+                case 3:
+                    ghostY[ghostNum] -= 20;
+                    break;
+            }
+            justMovedBackward = true;
+        }
+
+        sleep(seconds(1));
+    }
+    return NULL;
+}
+
+void *moveGhostThread4(void *arg)
+{
+    int ghostNum = 3;//*((int *)arg);
+    int lastDirection = 0; // 0 = right, 1 = left, 2 = up, 3 = down
+    bool justMovedBackward = false;
+
+    srand(time(NULL)); // Initialize random number generator
+
+	
+
+    while (window.isOpen())
+    {
+ 	float time = clock1.getElapsedTime().asSeconds();
+
+	clock1.restart();
+	timer += time;
+	int val = 0;
+	sem_getvalue(&ghostSemaphore, &val);
+
+	if(timer >= 8 && val < 2){
+		sem_post(&ghostSemaphore);
+		timer = 0;
+	}
+	
+	cout << "Ghost 1" << timer << endl;
+	
         if (!justMovedBackward && !isCollision(ghostX[ghostNum] + 20, ghostY[ghostNum]) && lastDirection != 1) {
             ghostX[ghostNum] += 20;
             lastDirection = 0;
@@ -307,13 +580,29 @@ void *moveGhostThread(void *arg)
 }
 
 
+
+
+
 int main()
 {
     window.setActive(false);
     pthread_t thread;
-    pthread_t thread2;
+    pthread_t thread2, thread3, thread4, thread5;
     pthread_create(&thread, NULL, gameEngineThread, NULL);
+    
+    sem_init(&ghostSemaphore, 0, 2);
+    
+    sem_wait(&ghostSemaphore);
     pthread_create(&thread2, NULL, moveGhostThread, NULL);
+    
+    sem_wait(&ghostSemaphore);
+    pthread_create(&thread3, NULL, moveGhostThread2, NULL);
+    
+    sem_wait(&ghostSemaphore);
+    pthread_create(&thread4, NULL, moveGhostThread3, NULL);
+    
+    sem_wait(&ghostSemaphore);
+    pthread_create(&thread5, NULL, moveGhostThread4, NULL);
     //pthread_create(&thread2, NULL, userInterfaceThread, NULL);
 
     pthread_join(thread, NULL);
